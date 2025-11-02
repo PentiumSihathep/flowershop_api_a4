@@ -8,7 +8,6 @@ const config = require('../config/config');
 
 const db = {};
 
-// Initialise sequelize using your existing config pattern
 const sequelize = new Sequelize(
   config.db.database,
   config.db.user,
@@ -16,7 +15,7 @@ const sequelize = new Sequelize(
   config.db.options
 );
 
-// ---- User (auth: admin | staff | customer) ----
+// ------------------ User ------------------
 const User = sequelize.define('User', {
   id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
   email: { type: DataTypes.STRING, allowNull: false, unique: true, validate: { isEmail: true } },
@@ -24,12 +23,8 @@ const User = sequelize.define('User', {
   passwordHash: { type: DataTypes.STRING, allowNull: false },
   role: { type: DataTypes.ENUM('admin', 'staff', 'customer'), defaultValue: 'customer' },
   isActive: { type: DataTypes.BOOLEAN, defaultValue: true }
-}, {
-  tableName: 'users',
-  underscored: true
-});
+}, { tableName: 'users', underscored: true });
 
-// Helper methods (mirror your style)
 User.prototype.signToken = function (payload) {
   return jwt.sign(payload, config.auth.jwtSecret, { expiresIn: '7d', algorithm: 'HS512' });
 };
@@ -41,7 +36,7 @@ User.prototype.comparePassword = function (candidate, hash = this.passwordHash) 
   return bcrypt.compare(candidate, hash);
 };
 
-// ---- Flower (catalog/inventory) ----
+// ------------------ Flower ------------------
 const Flower = sequelize.define('Flower', {
   id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
   name: { type: DataTypes.STRING, allowNull: false },
@@ -57,7 +52,7 @@ const Flower = sequelize.define('Flower', {
   scopes: { all: { where: {} } }
 });
 
-// ---- Customer (CRM profile managed by staff) ----
+// ------------------ Customer ------------------
 const Customer = sequelize.define('Customer', {
   id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
   name: { type: DataTypes.STRING, allowNull: false },
@@ -72,7 +67,7 @@ const Customer = sequelize.define('Customer', {
   scopes: { all: { where: {} } }
 });
 
-// ---- Order & OrderItem (many-to-many) ----
+// ------------------ Order & OrderItem ------------------
 const Order = sequelize.define('Order', {
   id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
   customerId: { type: DataTypes.INTEGER, allowNull: false },
@@ -82,28 +77,48 @@ const Order = sequelize.define('Order', {
   },
   total: { type: DataTypes.DECIMAL(10, 2), defaultValue: 0.0 },
   notes: { type: DataTypes.TEXT }
-}, {
-  tableName: 'orders',
-  underscored: true
-});
+}, { tableName: 'orders', underscored: true });
 
 const OrderItem = sequelize.define('OrderItem', {
-  // Composite (orderId, flowerId) is typical, but Sequelize also allows id-less join with PKs
+  // ✅ Composite primary key (no `id` column)
+  orderId:  { type: DataTypes.INTEGER, allowNull: false, primaryKey: true }, // FK -> orders.id
+  flowerId: { type: DataTypes.INTEGER, allowNull: false, primaryKey: true }, // FK -> flowers.id
   quantity: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 1 },
-  price: { type: DataTypes.DECIMAL(10, 2), allowNull: false } // unit price at time of sale
+  price:    { type: DataTypes.DECIMAL(10, 2), allowNull: false }             // unit price at sale
 }, {
   tableName: 'order_items',
-  underscored: true
+  underscored: true,
+  indexes: [
+    { unique: true, fields: ['order_id', 'flower_id'] } // prevent duplicate lines
+  ]
 });
 
-// ---- Associations ----
+// ------------------ Associations ------------------
+// Customer ↔ Order
 Customer.hasMany(Order, { foreignKey: 'customerId', onDelete: 'RESTRICT' });
 Order.belongsTo(Customer, { foreignKey: 'customerId' });
 
-Order.belongsToMany(Flower, { through: OrderItem, foreignKey: 'orderId' });
-Flower.belongsToMany(Order, { through: OrderItem, foreignKey: 'flowerId' });
+// Order ↔ OrderItem
+Order.hasMany(OrderItem, { as: 'items', foreignKey: 'orderId', onDelete: 'CASCADE' });
+OrderItem.belongsTo(Order, { foreignKey: 'orderId' });
 
-// ---- Export (compatible with your base) ----
+// Flower ↔ OrderItem
+Flower.hasMany(OrderItem, { foreignKey: 'flowerId', onDelete: 'RESTRICT' });
+OrderItem.belongsTo(Flower, { foreignKey: 'flowerId' });
+
+// Optional many-to-many helpers (for includes like Order -> Flower)
+Order.belongsToMany(Flower, {
+  through: OrderItem,
+  foreignKey: 'orderId',
+  otherKey: 'flowerId'
+});
+Flower.belongsToMany(Order, {
+  through: OrderItem,
+  foreignKey: 'flowerId',
+  otherKey: 'orderId'
+});
+
+// ------------------ Export ------------------
 db.sequelize = sequelize;
 db.Sequelize = Sequelize;
 

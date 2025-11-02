@@ -5,46 +5,43 @@ const express = require('express');
 const db = require('../models');
 const auth = require('../middleware/auth');
 const admin = require('../middleware/admin');
-const logger = require('../logger'); // ✅ logging
+const logger = require('../logger');
 
 const router = express.Router();
 const { Sequelize, Order, OrderItem, Flower } = db;
 const { Op } = Sequelize;
 
-// All endpoints require admin
 router.use(auth, admin);
 
 // GET /reports/sales?from=YYYY-MM-DD&to=YYYY-MM-DD
-// Returns: { totalRevenue, orders, topFlowers: [{ flowerId, name, qty, revenue }] }
 router.get('/sales', async (req, res) => {
   try {
     const { from, to } = req.query;
-    const where = {};
 
-    // Parse dates safely (ignore invalid)
+    // Optional date range on Order.createdAt
+    const where = {};
     const fromDate = from ? new Date(from) : null;
     const toDate   = to   ? new Date(to)   : null;
+    if (fromDate && !isNaN(fromDate)) where.createdAt = { ...(where.createdAt || {}), [Op.gte]: fromDate };
+    if (toDate   && !isNaN(toDate))   where.createdAt = { ...(where.createdAt || {}), [Op.lte]: toDate   };
 
-    if (fromDate && !isNaN(fromDate)) {
-      where.createdAt = { ...(where.createdAt || {}), [Op.gte]: fromDate };
-    }
-    if (toDate && !isNaN(toDate)) {
-      where.createdAt = { ...(where.createdAt || {}), [Op.lte]: toDate };
-    }
-
+    // Totals via orders table
     const orders = await Order.findAll({ where, attributes: ['id', 'total'] });
     const totalRevenue = orders.reduce((sum, o) => sum + Number(o.total || 0), 0);
     const orderCount = orders.length;
 
-    // Top flowers by quantity (and revenue)
+    // Top flowers — fully qualify with the Sequelize alias "OrderItem"
     const top = await OrderItem.findAll({
       attributes: [
         'flowerId',
-        [Sequelize.fn('SUM', Sequelize.col('quantity')), 'qty'],
-        [Sequelize.fn('SUM', Sequelize.literal('quantity * price')), 'revenue']
+        [Sequelize.fn('SUM', Sequelize.col('OrderItem.quantity')), 'qty'],
+        [Sequelize.literal('SUM("OrderItem"."quantity" * "OrderItem"."price")'), 'revenue']
+      ],
+      include: [
+        { model: Flower, attributes: ['id', 'name'] },
+        { model: Order, attributes: [], where } // apply date range
       ],
       group: ['flowerId', 'Flower.id'],
-      include: [{ model: Flower, attributes: ['id', 'name'] }],
       order: [[Sequelize.literal('qty'), 'DESC']],
       limit: 5
     });
@@ -52,8 +49,8 @@ router.get('/sales', async (req, res) => {
     const topFlowers = top.map(t => ({
       flowerId: t.flowerId,
       name: t.Flower?.name,
-      qty: Number(t.get('qty')),
-      revenue: Number(t.get('revenue'))
+      qty: Number(t.get('qty') || 0),
+      revenue: Number(t.get('revenue') || 0)
     }));
 
     logger.info('Reports: sales generated', {

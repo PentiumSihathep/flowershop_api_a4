@@ -22,7 +22,7 @@ router.get('/', [auth, staff], async (req, res) => {
     const { count, rows } = await Order.findAndCountAll({
       include: [
         { model: Customer, attributes: ['id', 'name', 'email'] },
-        { model: Flower }
+        { model: Flower, through: { attributes: ['quantity', 'price'] } } // ✅ return line items
       ],
       limit,
       offset,
@@ -49,7 +49,7 @@ router.get('/:id', [auth, staff], async (req, res) => {
     const order = await Order.findByPk(id, {
       include: [
         { model: Customer, attributes: ['id', 'name', 'email'] },
-        { model: Flower }
+        { model: Flower, through: { attributes: ['quantity', 'price'] } } // ✅
       ]
     });
 
@@ -122,7 +122,10 @@ router.post('/', [auth, staff], async (req, res) => {
     await transaction.commit();
 
     const fullOrder = await Order.findByPk(order.id, {
-      include: [Customer, { model: Flower }]
+      include: [
+        { model: Customer, attributes: ['id', 'name', 'email'] },
+        { model: Flower, through: { attributes: ['quantity', 'price'] } } // ✅
+      ]
     });
 
     logger.info('Order created', { orderId: order.id, customerId, itemsCount: items.length, total });

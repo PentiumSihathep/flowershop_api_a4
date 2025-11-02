@@ -14,7 +14,7 @@ const logger = require('./logger');             // your winston instance
 // ---- Routes (v3 plan) ----
 const authRoutes = require('./routes/auth');
 const flowerRoutes = require('./routes/flowers');
-const customerRoutes = require('./routes/flowers');
+const customerRoutes = require('./routes/customers');
 const shopRoutes = require('./routes/shop');
 const orderRoutes = require('./routes/orders');
 const staffRoutes = require('./routes/staff');        // admin-only
