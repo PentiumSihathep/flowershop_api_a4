@@ -1,0 +1,33 @@
+{
+  "name": "toyrus_app",
+  "version": "1.0.0",
+  "description": "toyrus assessment1 Lab A",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node src/server.js",
+    "seed": "node src/seed.js",
+    "server": "nodemon src/server.js",
+    "docs": "jsdoc -c jsdoc.json"
+  },
+  "author": "Pentium Sihathep",
+  "license": "ISC",
+  "dependencies": {
+    "bcrypt": "^6.0.0",
+    "cors": "^2.8.5",
+    "express": "^5.1.0",
+    "express-rate-limit": "^8.1.0",
+    "helmet": "^8.1.0",
+    "joi": "^18.0.1",
+    "jsonwebtoken": "^9.0.2",
+    "morgan": "^1.10.1",
+    "sequelize": "^6.37.7",
+    "sqlite3": "^5.1.7",
+    "winston": "^3.18.3"
+  },
+  "devDependencies": {
+    "dotenv": "^17.2.2",
+    "jsdoc": "^4.0.4",
+    "nodemon": "^3.1.10"
+  }
+}
