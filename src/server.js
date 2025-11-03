@@ -6,10 +6,11 @@ const helmet = require('helmet');
 const cors = require('cors');
 const rateLimit = require('express-rate-limit');
 const morgan = require('morgan');
+const bcrypt = require('bcrypt');
 
-const config = require('./config/config');      // expects { port, ... }
-const db = require('./models');                 // expects { sequelize, ... }
-const logger = require('./logger');             // your winston instance
+const config = require('./config/config');
+const db = require('./models');                 
+const logger = require('./logger');
 
 // ---- Routes (v3 plan) ----
 const authRoutes = require('./routes/auth');
@@ -25,7 +26,7 @@ const app = express();
 
 // ---- Core middleware ----
 app.use(helmet());
-app.use(cors()); // tighten origins in prod if needed
+app.use(cors()); // tighten origins in prod
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -88,26 +89,50 @@ app.use((req, res) => {
   res.status(404).json({ error: 'Route not found' });
 });
 
-// ---- Central error handler (kept simple; enhance as needed) ----
+// ---- Central error handler ----
 app.use((err, req, res, next) => { // eslint-disable-line no-unused-vars
   const status = err.status || 500;
-  const payload = {
-    error: err.message || 'Internal Server Error',
-  };
-  if (process.env.NODE_ENV !== 'production' && err.stack) {
-    payload.stack = err.stack;
-  }
+  const payload = { error: err.message || 'Internal Server Error' };
+  if (process.env.NODE_ENV !== 'production' && err.stack) payload.stack = err.stack;
   logger.error('Unhandled error', { status, message: err.message, stack: err.stack });
   res.status(status).json(payload);
 });
 
+// ---- Bootstrap admin helper ----
+async function ensureBootstrapAdmin() {
+  const { User } = db;
+  const email = process.env.BOOTSTRAP_ADMIN_EMAIL // || 'admin@example.com';
+  const password = process.env.BOOTSTRAP_ADMIN_PASSWORD  // || 'Admin123!';
+  const name = process.env.BOOTSTRAP_ADMIN_NAME // || 'Super Admin';
+
+  const existing = await User.findOne({ where: { role: 'admin' } });
+  if (!existing) {
+    const passwordHash = await bcrypt.hash(password, 11);
+    const admin = await User.create({
+      name,
+      email,
+      passwordHash,
+      role: 'admin',
+      isActive: true,
+    });
+    logger.warn(`🛠️ Bootstrap admin created -> email: ${email} | password: ${password}`);
+  } else {
+    logger.info('✅ Admin already exists, skipping bootstrap');
+  }
+}
+
 // ---- Start server once DB is ready ----
 db.sequelize
   .authenticate()
-  .then(() => {
+  .then(async () => {
     logger.info('✅ Database connection established');
-    return db.sequelize.sync(); // consider { alter: true } in dev only
+    if (db.sequelize.getDialect() === 'sqlite') {
+      await db.sequelize.query('PRAGMA foreign_keys = ON');
+      logger.info('🔧 SQLite PRAGMA foreign_keys = ON');
+    }
   })
+  .then(() => db.sequelize.sync())
+  .then(() => ensureBootstrapAdmin()) // 🟢 create default admin if none
   .then(() => {
     const port = config.port || process.env.PORT || 4000;
     app.listen(port, () => logger.info(`🚀 Server is running on port ${port}`));

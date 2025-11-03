@@ -1,81 +1,162 @@
-// src/seed.js
-// Seeds the Flower Shop database with an admin account and sample data.
+// scripts/seed.js
+// Seed minimal data: 1 admin, 1 staff, 1 customer, flowers, and two demo orders.
+// This file is used to create mock up data to the database for testing.
+// To run this file use the command " npm run seed "
 
+const db = require('../src/models');
 const bcrypt = require('bcrypt');
-const db = require('./models');
 
-async function runSeed() {
+async function hash(pw) {
+
+  // return (await new db.User()).hashPassword(pw);
+  const salt = await bcrypt.genSalt(11);
+  return bcrypt.hash(pw, salt);
+}
+
+async function createUser({ name, email, role, password }) {
+  const [u] = await db.User.findOrCreate({
+    where: { email },
+    defaults: {
+      name,
+      email,
+      role,
+      isActive: true,
+      passwordHash: await hash(password),
+    },
+  });
+  return u;
+}
+
+async function upsertCustomer({ name, email, phone, address }) {
+  const [c] = await db.Customer.unscoped().findOrCreate({
+    where: { email },
+    defaults: { name, email, phone, address, isActive: true },
+  });
+  if (!c.isActive) await c.update({ isActive: true });
+  return c;
+}
+
+async function ensureFlowers() {
+  const data = [
+    { name: 'Rose Red', description: 'Classic red roses', price: 9.9, stock: 80, category: 'Roses' },
+    { name: 'Sunflower', description: 'Bright and bold', price: 7.5, stock: 60, category: 'Seasonal' },
+    { name: 'Tulip Pink', description: 'Soft pink tulips', price: 6.0, stock: 70, category: 'Tulips' },
+    { name: 'Baby’s Breath', description: 'Filler magic', price: 3.0, stock: 120, category: 'Filler' },
+    { name: 'Lily White', description: 'Elegant lilies', price: 8.5, stock: 50, category: 'Lilies' },
+    { name: 'Orchid Purple', description: 'Premium orchid stem', price: 12.0, stock: 30, category: 'Orchids' },
+  ];
+
+  const created = [];
+  for (const f of data) {
+    const [row] = await db.Flower.scope('all').findOrCreate({
+      where: { name: f.name },
+      defaults: f,
+    });
+    if (!row.isActive) await row.update({ isActive: true });
+    created.push(row);
+  }
+  return created;
+}
+
+async function createOrder({ customerId, items, notes }) {
+  const t = await db.sequelize.transaction();
   try {
-    console.log('🌱 Seeding database...');
-    await db.sequelize.sync({ alter: true }); // creates tables if not exist
+    const order = await db.Order.create(
+      { customerId, status: 'paid', total: 0, notes },
+      { transaction: t }
+    );
 
-    // ---------- 1. ADMIN ACCOUNT ----------
-    const adminEmail = 'admin@flowershop.test';
-    const adminExists = await db.User.findOne({ where: { email: adminEmail } });
-    if (!adminExists) {
-      const passwordHash = await bcrypt.hash('Admin123!', 11);
-      await db.User.create({
-        email: adminEmail,
-        name: 'Admin',
-        passwordHash,
-        role: 'admin',
-        isActive: true
-      });
-      console.log(`✅ Created admin user: ${adminEmail} / Admin123!`);
-    } else {
-      console.log(`ℹ️ Admin user already exists (${adminEmail})`);
+    let total = 0;
+    for (const { flowerId, quantity } of items) {
+      const flower = await db.Flower.findByPk(flowerId, { transaction: t });
+      if (!flower || !flower.isActive) throw new Error(`Flower ${flowerId} unavailable`);
+      if (flower.stock < quantity) throw new Error(`Insufficient stock for ${flower.name}`);
+
+      const price = Number(flower.price);
+      total += price * quantity;
+
+      await db.OrderItem.create({ orderId: order.id, flowerId, quantity, price }, { transaction: t });
+      await flower.update({ stock: flower.stock - quantity }, { transaction: t });
     }
 
-    // ---------- 2. STAFF ACCOUNT ----------
-    const staffEmail = 'staff@flowershop.test';
-    const staffExists = await db.User.findOne({ where: { email: staffEmail } });
-    if (!staffExists) {
-      const passwordHash = await bcrypt.hash('Staff123!', 11);
-      await db.User.create({
-        email: staffEmail,
-        name: 'Flower Staff',
-        passwordHash,
-        role: 'staff',
-        isActive: true
-      });
-      console.log(`✅ Created staff user: ${staffEmail} / Staff123!`);
-    }
-
-    // ---------- 3. SAMPLE CUSTOMERS ----------
-    const customers = [
-      { name: 'Jane Doe', email: 'jane@example.com', phone: '0400000000', address: '123 Collins St' },
-      { name: 'John Smith', email: 'john@example.com', phone: '0400000001', address: '456 Bourke St' }
-    ];
-
-    for (const c of customers) {
-      const exists = await db.Customer.findOne({ where: { email: c.email } });
-      if (!exists) {
-        await db.Customer.create(c);
-        console.log(`✅ Added customer: ${c.name}`);
-      }
-    }
-
-    // ---------- 4. SAMPLE FLOWERS ----------
-    const flowers = [
-      { name: 'Red Roses', description: 'A dozen red roses bouquet', price: 49.99, stock: 50, category: 'bouquet' },
-      { name: 'Tulip Bunch', description: 'Mixed tulip arrangement', price: 39.95, stock: 30, category: 'arrangement' },
-      { name: 'Orchid Pot', description: 'Elegant potted orchids', price: 59.90, stock: 15, category: 'plant' }
-    ];
-
-    for (const f of flowers) {
-      const exists = await db.Flower.findOne({ where: { name: f.name } });
-      if (!exists) {
-        await db.Flower.create(f);
-        console.log(`✅ Added flower: ${f.name}`);
-      }
-    }
-
-    console.log('🌸 Seed completed successfully.');
-    process.exit(0);
-  } catch (err) {
-    console.error('❌ Seed failed:', err);
-    process.exit(1);
+    await order.update({ total }, { transaction: t });
+    await t.commit();
+    return order;
+  } catch (e) {
+    await t.rollback();
+    throw e;
   }
 }
 
-runSeed();
+(async () => {
+  try {
+    await db.sequelize.authenticate();
+    // Make sure SQLite enforces FK
+    await db.sequelize.query('PRAGMA foreign_keys = ON');
+
+    // Do NOT drop data; just ensure tables exist
+    await db.sequelize.sync({ alter: false });
+
+    const admin = await createUser({
+      name: 'Admin',
+      email: 'admin@example.com',
+      role: 'admin',
+      password: 'Admin123!',
+    });
+
+    const staff = await createUser({
+      name: 'Staff',
+      email: 'staff@example.com',
+      role: 'staff',
+      password: 'Staff123!',
+    });
+
+    const customerUser = await createUser({
+      name: 'Alice Customer',
+      email: 'alice@example.com',
+      role: 'customer',
+      password: 'Customer123!',
+    });
+
+    const customer = await upsertCustomer({
+      name: 'Alice Customer',
+      email: 'alice@example.com',
+      phone: '0400 000 000',
+      address: '123 Collins St, Melbourne',
+    });
+
+    const flowers = await ensureFlowers();
+
+    // Demo orders
+    const f = Object.fromEntries(flowers.map(x => [x.name, x]));
+    await createOrder({
+      customerId: customer.id,
+      items: [
+        { flowerId: f['Rose Red'].id, quantity: 3 },
+        { flowerId: f['Baby’s Breath'].id, quantity: 2 },
+      ],
+      notes: 'Seed order: birthday bouquet',
+    });
+
+    await createOrder({
+      customerId: customer.id,
+      items: [
+        { flowerId: f['Sunflower'].id, quantity: 4 },
+        { flowerId: f['Tulip Pink'].id, quantity: 5 },
+      ],
+      notes: 'Seed order: spring mix',
+    });
+
+    console.log('✅ Seed complete:', {
+      admin: admin.email,
+      staff: staff.email,
+      customer: customer.email,
+      flowers: flowers.length,
+      demoOrders: 2,
+    });
+    process.exit(0);
+  } catch (err) {
+    console.error('❌ Seed failed:', err.message);
+    process.exit(1);
+  }
+})();
