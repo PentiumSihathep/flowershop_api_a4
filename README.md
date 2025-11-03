@@ -7,7 +7,7 @@
 
 ---
 
-## 🧱 System Overview
+## System Overview
 
 | Component | Description |
 |------------|--------------|
@@ -21,25 +21,7 @@
 
 ---
 
-## ⚙️ Environment Variables
-
-| Variable | Description | Example |
-|-----------|--------------|----------|
-| `PORT` | API port | `4000` |
-| `DIALECT` | DB dialect (`sqlite`, `mysql`, `postgres`) | `sqlite` |
-| `DB_NAME` | Database name | `flowershopDB` |
-| `DB_USER` | Database user | `root` |
-| `DB_PASS` | Database password | `` |
-| `HOST` | Database host | `localhost` |
-| `JWT_SECRET` | Secret key for JWT signing | `mysecretkey` |
-| `BOOTSTRAP_ADMIN_EMAIL` | Default admin email (auto-created on first run) | `admin@example.com` |
-| `BOOTSTRAP_ADMIN_PASSWORD` | Default admin password | `Admin123!` |
-| `RATE_LIMIT_WINDOW_MS` | Rate limit window in ms | `900000` |
-| `RATE_LIMIT_MAX` | Max requests per window | `200` |
-
----
-
-## 🧩 Core Features
+## Core Features
 
 | Feature | Description |
 |----------|-------------|
@@ -55,7 +37,7 @@
 
 ---
 
-## 🧠 Boot Process
+## Boot Process
 
 1. **Database Connection**
    - Sequelize connects to the configured database.
@@ -70,7 +52,7 @@
 
 ---
 
-## 🔐 Authentication & Authorisation
+## Authentication & Authorisation
 
 | Role | Permissions |
 |------|--------------|
