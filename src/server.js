@@ -115,9 +115,9 @@ async function ensureBootstrapAdmin() {
       role: 'admin',
       isActive: true,
     });
-    logger.warn(`🛠️ Bootstrap admin created -> email: ${email} | password: ${password}`);
+    logger.warn(`Bootstrap admin created -> email: ${email} | password: ${password}`);
   } else {
-    logger.info('✅ Admin already exists, skipping bootstrap');
+    logger.info('Admin already exists, skipping bootstrap');
   }
 }
 
@@ -125,20 +125,20 @@ async function ensureBootstrapAdmin() {
 db.sequelize
   .authenticate()
   .then(async () => {
-    logger.info('✅ Database connection established');
+    logger.info('Database connection established');
     if (db.sequelize.getDialect() === 'sqlite') {
       await db.sequelize.query('PRAGMA foreign_keys = ON');
       logger.info('🔧 SQLite PRAGMA foreign_keys = ON');
     }
   })
   .then(() => db.sequelize.sync())
-  .then(() => ensureBootstrapAdmin()) // 🟢 create default admin if none
+  .then(() => ensureBootstrapAdmin())
   .then(() => {
     const port = config.port || process.env.PORT || 4000;
-    app.listen(port, () => logger.info(`🚀 Server is running on port ${port}`));
+    app.listen(port, () => logger.info(`Server is running on port ${port}`));
   })
   .catch((err) => {
-    logger.error('❌ Failed to start server (DB error):', err);
+    logger.error('Failed to start server (DB error):', err);
     process.exit(1);
   });
 
@@ -146,7 +146,7 @@ db.sequelize
 process.on('SIGINT', async () => {
   try {
     await db.sequelize.close();
-    logger.info('🔻 DB connection closed');
+    logger.info('DB connection closed');
   } finally {
     process.exit(0);
   }

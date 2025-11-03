@@ -6,7 +6,7 @@ const bcrypt = require('bcrypt');
 const db = require('../models');
 const auth = require('../middleware/auth');
 const admin = require('../middleware/admin');
-const logger = require('../logger'); // ✅ logging
+const logger = require('../logger');
 
 const router = express.Router();
 const { User, Sequelize } = db;
@@ -19,7 +19,7 @@ router.use(auth, admin);
 router.get('/', async (req, res) => {
   try {
     const list = await User.findAll({
-      where: { isActive: true, role: { [Op.in]: ['staff', 'admin'] } }, // ✅ Op.in
+      where: { isActive: true, role: { [Op.in]: ['staff', 'admin'] } },
       order: [['id', 'DESC']],
       attributes: ['id', 'email', 'name', 'role', 'isActive']
     });

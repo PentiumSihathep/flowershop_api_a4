@@ -5,7 +5,7 @@ const express = require('express');
 const db = require('../models');
 const auth = require('../middleware/auth');   // verifies JWT
 const staff = require('../middleware/staff'); // restricts to staff/admin
-const logger = require('../logger');          // ✅ added Winston logger
+const logger = require('../logger');          // Winston logger
 
 const router = express.Router();
 const { Flower } = db; // from models/index.js
@@ -38,7 +38,7 @@ router.get('/', async (req, res) => {
       attributes: ['id', 'name', 'description', 'price', 'stock', 'category', 'isActive'],
     });
 
-    logger.info('🌼 Flowers retrieved', { total: count, page, pageSize });
+    logger.info('Flowers retrieved', { total: count, page, pageSize });
     res.status(200).json({
       data: rows,
       meta: { total: count, page: Number(page), pageSize: limit },
@@ -64,7 +64,7 @@ router.get('/:id', async (req, res) => {
       return res.status(404).json({ msg: 'Flower not found' });
     }
 
-    logger.info('🌸 Flower retrieved', { id, name: flower.name });
+    logger.info('Flower retrieved', { id, name: flower.name });
     res.status(200).json(flower);
   } catch (err) {
     logger.error('Failed to get flower', { id, error: err.message });
@@ -91,7 +91,7 @@ router.post('/', [auth, staff], async (req, res) => {
       category,
     });
 
-    logger.info('🌻 Flower created', { id: flower.id, name: flower.name, price: flower.price });
+    logger.info('Flower created', { id: flower.id, name: flower.name, price: flower.price });
     res.status(201).json(flower);
   } catch (err) {
     logger.error('Failed to create flower', { error: err.message });
@@ -112,7 +112,7 @@ router.put('/:id', [auth, staff], async (req, res) => {
     }
 
     await flower.update(req.body);
-    logger.info('🌼 Flower updated', { id, fields: Object.keys(req.body) });
+    logger.info('Flower updated', { id, fields: Object.keys(req.body) });
     res.status(200).json(flower);
   } catch (err) {
     logger.error('Failed to update flower', { id, error: err.message });
@@ -161,7 +161,7 @@ router.post('/:id/restock', [auth, staff], async (req, res) => {
     }
 
     await flower.update({ stock: newStock });
-    logger.info('🌺 Stock updated', { id, newStock });
+    logger.info('Stock updated', { id, newStock });
     res.status(200).json(flower);
   } catch (err) {
     logger.error('Failed to restock flower', { id, error: err.message });

@@ -147,7 +147,7 @@ async function createOrder({ customerId, items, notes }) {
       notes: 'Seed order: spring mix',
     });
 
-    console.log('✅ Seed complete:', {
+    console.log('Seed complete:', {
       admin: admin.email,
       staff: staff.email,
       customer: customer.email,
@@ -156,7 +156,7 @@ async function createOrder({ customerId, items, notes }) {
     });
     process.exit(0);
   } catch (err) {
-    console.error('❌ Seed failed:', err.message);
+    console.error('Seed failed:', err.message);
     process.exit(1);
   }
 })();

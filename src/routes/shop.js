@@ -4,7 +4,7 @@
 const express = require('express');
 const db = require('../models');
 const auth = require('../middleware/auth'); // verifies JWT and sets req.user
-const logger = require('../logger');        // ✅ add logger
+const logger = require('../logger');
 
 const router = express.Router();
 const { sequelize, Customer, Order, OrderItem, Flower } = db;
@@ -122,7 +122,7 @@ router.post('/orders', [auth, requireCustomer], async (req, res) => {
     }
 
     for (const [flowerId, q] of merged.entries()) {
-      // 🔄 Removed row lock to behave reliably on SQLite
+      // Removed row lock to behave reliably on SQLite
       const flower = await Flower.findByPk(flowerId, { transaction: t });
       if (!flower || !flower.isActive) {
         await t.rollback();

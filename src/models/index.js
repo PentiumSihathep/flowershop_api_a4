@@ -28,10 +28,12 @@ const User = sequelize.define('User', {
 User.prototype.signToken = function (payload) {
   return jwt.sign(payload, config.auth.jwtSecret, { expiresIn: '7d', algorithm: 'HS512' });
 };
+
 User.prototype.hashPassword = async function (plain) {
   const salt = await bcrypt.genSalt(11);
   return bcrypt.hash(plain, salt);
 };
+
 User.prototype.comparePassword = function (candidate, hash = this.passwordHash) {
   return bcrypt.compare(candidate, hash);
 };
@@ -80,7 +82,7 @@ const Order = sequelize.define('Order', {
 }, { tableName: 'orders', underscored: true });
 
 const OrderItem = sequelize.define('OrderItem', {
-  // ✅ Composite primary key (no `id` column)
+  // Composite primary key (no `id` column)
   orderId:  { type: DataTypes.INTEGER, allowNull: false, primaryKey: true }, // FK -> orders.id
   flowerId: { type: DataTypes.INTEGER, allowNull: false, primaryKey: true }, // FK -> flowers.id
   quantity: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 1 },
@@ -118,7 +120,7 @@ Flower.belongsToMany(Order, {
   otherKey: 'orderId'
 });
 
-// ------------------ Export ------------------
+// Export
 db.sequelize = sequelize;
 db.Sequelize = Sequelize;
 

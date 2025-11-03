@@ -5,7 +5,7 @@ const express = require('express');
 const db = require('../models');
 const auth = require('../middleware/auth');
 const staff = require('../middleware/staff');
-const logger = require('../logger'); // ✅ add logger
+const logger = require('../logger');
 
 const router = express.Router();
 const { Customer, Order } = db;

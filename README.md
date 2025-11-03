@@ -1,8 +1,8 @@
-# 🌸 Flower Shop API – Technical Documentation (v3)
+# Flower Shop API – Technical Documentation
 
 > **Environment:** Node.js + Express + Sequelize + SQLite (ready for MySQL/Postgres)  
 > **Purpose:** Backend API for a flower shop – handles customers, staff, orders, reports, and inventory.  
-> **Author:**   
+  
   
 
 ---

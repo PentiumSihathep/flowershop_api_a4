@@ -9,7 +9,7 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const db = require('../models');
 const config = require('../config/config');
-const logger = require('../logger'); // ✅ add logger
+const logger = require('../logger');
 
 const router = express.Router();
 const { User } = db;
